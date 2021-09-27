@@ -15,8 +15,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ghc: ['9.0.1', '8.10.7', '8.10.6', '8.10.5', '8.8.4', '8.8.3', '8.6.5']
-        os: [ubuntu-18.04, macOS-latest, windows-latest]
+        ghc: ['9.0.1', '8.10.7', '8.10.6', '8.10.5']
+        os: [ubuntu-18.04]
         exclude:
           - os: windows-latest
             ghc: '8.8.3' # fails due to segfault
@@ -195,7 +195,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        os: [Linux, macOS, Windows]
+        os: [Linux]
     steps:
       - uses: actions/download-artifact@v2
 
