@@ -8,10 +8,12 @@ module Development.IDE.Graph.Database(
     shakeRunDatabase,
     shakeRunDatabaseForKeys,
     shakeProfileDatabase,
+    shakeGetBuildStep,
     shakeGetDirtySet
     ) where
 
 import           Data.Dynamic
+import           Data.IORef                              (readIORef)
 import           Data.Maybe
 import           Development.IDE.Graph.Classes           ()
 import           Development.IDE.Graph.Internal.Action
@@ -43,6 +45,12 @@ shakeRunDatabase = shakeRunDatabaseForKeys Nothing
 shakeGetDirtySet :: ShakeDatabase -> IO [(Key, Int)]
 shakeGetDirtySet (ShakeDatabase _ _ db) =
     fmap snd <$> Development.IDE.Graph.Internal.Database.getDirtySet db
+
+-- | Returns the build number
+shakeGetBuildStep :: ShakeDatabase -> IO Int
+shakeGetBuildStep (ShakeDatabase _ _ db) = do
+    Step s <- readIORef $ databaseStep db
+    return s
 
 -- Only valid if we never pull on the results, which we don't
 unvoid :: Functor m => m () -> m a
