@@ -36,12 +36,14 @@ import qualified Language.LSP.Server            as LSP
 import           Language.LSP.Types
 import           System.Time.Extra
 
+type Age = Int
 data TestRequest
     = BlockSeconds Seconds           -- ^ :: Null
     | GetInterfaceFilesDir FilePath  -- ^ :: String
     | GetShakeSessionQueueCount      -- ^ :: Number
     | WaitForShakeQueue -- ^ Block until the Shake queue is empty. Returns Null
     | WaitForIdeRule String Uri      -- ^ :: WaitForIdeRuleResult
+    | GarbageCollectDirtyKeys Age    -- ^ :: [String] (list of keys collected)
     deriving Generic
     deriving anyclass (FromJSON, ToJSON)
 
@@ -88,6 +90,9 @@ testRequestHandler s (WaitForIdeRule k file) = liftIO $ do
     success <- runAction ("WaitForIdeRule " <> k <> " " <> show file) s $ parseAction (fromString k) nfp
     let res = WaitForIdeRuleResult <$> success
     return $ bimap mkResponseError toJSON res
+testRequestHandler s (GarbageCollectDirtyKeys age) = do
+    res <- liftIO $ runAction "garbage collect" s $ garbageCollectDirtyKeysOlderThan age
+    return $ Right $ toJSON $ map show res
 
 mkResponseError :: Text -> ResponseError
 mkResponseError msg = ResponseError InvalidRequest msg Nothing
