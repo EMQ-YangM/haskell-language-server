@@ -8,9 +8,11 @@ module Development.IDE.Graph.Database(
     shakeRunDatabase,
     shakeRunDatabaseForKeys,
     shakeProfileDatabase,
+    shakeGetBuildStep
     ) where
 
 import           Data.Dynamic
+import           Data.IORef                              (readIORef)
 import           Data.Maybe
 import           Development.IDE.Graph.Classes ()
 import           Development.IDE.Graph.Internal.Action
@@ -37,6 +39,12 @@ shakeNewDatabase opts rules = do
 
 shakeRunDatabase :: ShakeDatabase -> [Action a] -> IO ([a], [IO ()])
 shakeRunDatabase = shakeRunDatabaseForKeys Nothing
+
+-- | Returns the build number
+shakeGetBuildStep :: ShakeDatabase -> IO Int
+shakeGetBuildStep (ShakeDatabase _ _ db) = do
+    Step s <- readIORef $ databaseStep db
+    return s
 
 -- Only valid if we never pull on the results, which we don't
 unvoid :: Functor m => m () -> m a
