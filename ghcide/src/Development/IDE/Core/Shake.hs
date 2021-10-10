@@ -76,6 +76,8 @@ module Development.IDE.Core.Shake(
     addPersistentRule,
     garbageCollectDirtyKeys,
     garbageCollectDirtyKeysOlderThan,
+    garbageCollectKeysNotVisited,
+    garbageCollectKeysNotVisitedFor
     ) where
 
 import           Control.Concurrent.Async
@@ -760,19 +762,32 @@ garbageCollectDirtyKeys = do
     IdeOptions{optMaxDirtyAge} <- getIdeOptions
     garbageCollectDirtyKeysOlderThan optMaxDirtyAge
 
-garbageCollectDirtyKeysOlderThan :: Int -> Action [Key]
-garbageCollectDirtyKeysOlderThan maxAge = otTracedGarbageCollection $ do
-    start <- liftIO offsetTime
-    dirtySet <- fromMaybe [] <$> getDirtySet
-    extras <- getShakeExtras
+garbageCollectKeysNotVisited :: Action [Key]
+garbageCollectKeysNotVisited = do
+    IdeOptions{optMaxDirtyAge} <- getIdeOptions
+    garbageCollectKeysNotVisitedFor optMaxDirtyAge
 
+garbageCollectDirtyKeysOlderThan :: Int -> Action [Key]
+garbageCollectDirtyKeysOlderThan maxAge = otTracedGarbageCollection "dirty GC" $ do
+    dirtySet <- fromMaybe [] <$> getDirtySet
+    garbageCollectKeys "dirty GC" maxAge dirtySet
+
+garbageCollectKeysNotVisitedFor :: Int -> Action [Key]
+garbageCollectKeysNotVisitedFor maxAge = otTracedGarbageCollection "not visited GC" $ do
+    keys <- getKeysAndVisitedAge
+    garbageCollectKeys "not visited GC" maxAge keys
+
+garbageCollectKeys :: String -> Int -> [(Key, Int)] -> Action [Key]
+garbageCollectKeys label maxAge agedKeys = do
+    start <- liftIO offsetTime
+    extras <- getShakeExtras
     (n::Int, garbage) <- liftIO $ modifyVar (state extras) $ \vmap ->
-        evaluate $ foldl' removeDirtyKey (vmap, (0,[])) dirtySet
+        evaluate $ foldl' removeDirtyKey (vmap, (0,[])) agedKeys
     liftIO $ atomicModifyIORef_ (dirtyKeys extras) $ \x ->
         foldl' (flip HSet.insert) x garbage
     t <- liftIO start
     when (n>0) $ liftIO $ logDebug (logger extras) $ T.pack $
-        "Garbage collected " <> show n <> " keys (took " <> showDuration t <> ")"
+        label <> " of " <> show n <> " keys (took " <> showDuration t <> ")"
     return garbage
 
     where
