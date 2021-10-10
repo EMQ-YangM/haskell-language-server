@@ -20,6 +20,12 @@ module Development.IDE.Test
   , standardizeQuotes
   , flushMessages
   , waitForAction
+  , garbageCollectDirtyKeys
+  , getFilesOfInterest
+  , waitForTypecheck
+  , waitForBuildQueue
+  , getStoredKeys
+  , garbageCollectNotVisitedKeys
   ) where
 
 import           Control.Applicative.Combinators
@@ -32,7 +38,8 @@ import qualified Data.Map.Strict                 as Map
 import           Data.Maybe                      (fromJust)
 import qualified Data.Text                       as T
 import           Development.IDE.Plugin.Test     (TestRequest (..),
-                                                  WaitForIdeRuleResult)
+                                                  WaitForIdeRuleResult,
+                                                  ideResultSuccess)
 import           Development.IDE.Test.Diagnostic
 import           Language.LSP.Test               hiding (message)
 import qualified Language.LSP.Test               as LspTest
@@ -169,13 +176,34 @@ canonicalizeUri uri = filePathToUri <$> canonicalizePath (fromJust (uriToFilePat
 diagnostic :: Session (NotificationMessage TextDocumentPublishDiagnostics)
 diagnostic = LspTest.message STextDocumentPublishDiagnostics
 
-waitForAction :: String -> TextDocumentIdentifier -> Session (Either ResponseError WaitForIdeRuleResult)
-waitForAction key TextDocumentIdentifier{_uri} = do
-    let cm = SCustomMethod "test"
-    waitId <- sendRequest cm (A.toJSON $ WaitForIdeRule key _uri)
-    ResponseMessage{_result} <- skipManyTill anyMessage $ responseForId cm waitId
-    return $ do
-      e <- _result
-      case A.fromJSON e of
-        A.Error e   -> Left $ ResponseError InternalError (T.pack e) Nothing
-        A.Success a -> pure a
+callTestPlugin :: (A.FromJSON b) => TestRequest -> Session b
+callTestPlugin cmd = do
+    let m = SCustomMethod "test"
+    waitId <- sendRequest m (A.toJSON cmd)
+    ResponseMessage{_result} <- skipManyTill anyMessage $ responseForId m waitId
+    return $ case _result of
+        Left (ResponseError t err _) -> error $ show t <> ": " <> T.unpack err
+        Right json -> case A.fromJSON json of
+            A.Success a -> a
+            A.Error e   -> error e
+
+waitForAction :: String -> TextDocumentIdentifier -> Session WaitForIdeRuleResult
+waitForAction key TextDocumentIdentifier{_uri} = callTestPlugin (WaitForIdeRule key _uri)
+
+garbageCollectDirtyKeys :: Int -> Session [String]
+garbageCollectDirtyKeys age = callTestPlugin (GarbageCollectDirtyKeys age)
+
+garbageCollectNotVisitedKeys :: Int -> Session [String]
+garbageCollectNotVisitedKeys age = callTestPlugin (GarbageCollectNotVisitedKeys age)
+
+getStoredKeys :: Session [String]
+getStoredKeys = callTestPlugin GetStoredKeys
+
+waitForTypecheck :: TextDocumentIdentifier -> Session Bool
+waitForTypecheck tid = ideResultSuccess <$> waitForAction "typecheck" tid
+
+waitForBuildQueue :: Session ()
+waitForBuildQueue = callTestPlugin WaitForShakeQueue
+
+getFilesOfInterest :: Session [FilePath]
+getFilesOfInterest = callTestPlugin GetFilesOfInterest
