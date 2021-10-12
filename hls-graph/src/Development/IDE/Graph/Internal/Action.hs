@@ -15,6 +15,7 @@ module Development.IDE.Graph.Internal.Action
 , parallel
 , reschedule
 , runActions
+, getKeysAndVisitedAge
 ) where
 
 import           Control.Concurrent.Async
@@ -125,3 +126,8 @@ runActions :: Database -> [Action a] -> IO [a]
 runActions db xs = do
     deps <- newIORef Nothing
     runReaderT (fromAction $ parallel xs) $ SAction db deps
+
+getKeysAndVisitedAge :: Action [(Key, Int)]
+getKeysAndVisitedAge = do
+    db <- getDatabase
+    liftIO $ Development.IDE.Graph.Internal.Database.getKeysAndVisitAge db

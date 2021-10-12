@@ -8,7 +8,8 @@ module Development.IDE.Graph.Database(
     shakeRunDatabase,
     shakeRunDatabaseForKeys,
     shakeProfileDatabase,
-    shakeGetBuildStep
+    shakeGetBuildStep,
+    shakeGetDatabaseKeys
     ) where
 
 import           Data.Dynamic
@@ -39,6 +40,11 @@ shakeNewDatabase opts rules = do
 
 shakeRunDatabase :: ShakeDatabase -> [Action a] -> IO ([a], [IO ()])
 shakeRunDatabase = shakeRunDatabaseForKeys Nothing
+
+-- | Returns ann approximation of the database keys,
+--   annotated with how long ago (in # builds) they were visited
+shakeGetDatabaseKeys :: ShakeDatabase -> IO [(Key, Int)]
+shakeGetDatabaseKeys (ShakeDatabase _ _ db) = getKeysAndVisitAge db
 
 -- | Returns the build number
 shakeGetBuildStep :: ShakeDatabase -> IO Int

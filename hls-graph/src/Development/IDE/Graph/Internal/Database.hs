@@ -11,7 +11,7 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module Development.IDE.Graph.Internal.Database (newDatabase, incDatabase, build) where
+module Development.IDE.Graph.Internal.Database (newDatabase, incDatabase, build, getKeysAndVisitAge) where
 
 import           Control.Concurrent.Async
 import           Control.Concurrent.Extra
@@ -182,6 +182,15 @@ compute db@Database{..} key id mode result = do
         Ids.insert databaseValues id (key, Clean res)
     pure res
 
+-- | Returns ann approximation of the database keys,
+--   annotated with how long ago (in # builds) they were visited
+getKeysAndVisitAge :: Database -> IO [(Key, Int)]
+getKeysAndVisitAge db = do
+    values <- Ids.elems (databaseValues db)
+    Step curr <- readIORef (databaseStep db)
+    let keysWithVisitAge = mapMaybe (secondM (fmap getAge . getResult)) values
+        getAge Result{resultVisited = Step s} = curr - s
+    return keysWithVisitAge
 --------------------------------------------------------------------------------
 -- Lazy IO trick
 
