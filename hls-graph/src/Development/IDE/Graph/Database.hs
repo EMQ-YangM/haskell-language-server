@@ -9,13 +9,14 @@ module Development.IDE.Graph.Database(
     shakeRunDatabaseForKeys,
     shakeProfileDatabase,
     shakeGetBuildStep,
-    shakeGetDatabaseKeys
+    shakeGetDatabaseKeys,
+    shakeGetDirtySet
     ) where
 
 import           Data.Dynamic
 import           Data.IORef                              (readIORef)
 import           Data.Maybe
-import           Development.IDE.Graph.Classes ()
+import           Development.IDE.Graph.Classes           ()
 import           Development.IDE.Graph.Internal.Action
 import           Development.IDE.Graph.Internal.Database
 import           Development.IDE.Graph.Internal.Options
@@ -51,6 +52,10 @@ shakeGetBuildStep :: ShakeDatabase -> IO Int
 shakeGetBuildStep (ShakeDatabase _ _ db) = do
     Step s <- readIORef $ databaseStep db
     return s
+
+-- | Returns the set of dirty keys annotated with their age (in # of builds)
+shakeGetDirtySet :: ShakeDatabase -> IO (Maybe [(Key, Int)])
+shakeGetDirtySet (ShakeDatabase _ _ db) = Development.IDE.Graph.Internal.Database.getDirtySet db
 
 -- Only valid if we never pull on the results, which we don't
 unvoid :: Functor m => m () -> m a
