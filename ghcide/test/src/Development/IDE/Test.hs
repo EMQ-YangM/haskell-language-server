@@ -41,6 +41,7 @@ import           Development.IDE.Plugin.Test     (TestRequest (..),
                                                   WaitForIdeRuleResult,
                                                   ideResultSuccess)
 import           Development.IDE.Test.Diagnostic
+import           Ide.Plugin.Config               (CheckParents)
 import           Language.LSP.Test               hiding (message)
 import qualified Language.LSP.Test               as LspTest
 import           Language.LSP.Types              hiding
@@ -190,11 +191,11 @@ callTestPlugin cmd = do
 waitForAction :: String -> TextDocumentIdentifier -> Session WaitForIdeRuleResult
 waitForAction key TextDocumentIdentifier{_uri} = callTestPlugin (WaitForIdeRule key _uri)
 
-garbageCollectDirtyKeys :: Int -> Session [String]
-garbageCollectDirtyKeys age = callTestPlugin (GarbageCollectDirtyKeys age)
+garbageCollectDirtyKeys :: CheckParents -> Int -> Session [String]
+garbageCollectDirtyKeys parents age = callTestPlugin (GarbageCollectDirtyKeys parents age)
 
-garbageCollectNotVisitedKeys :: Int -> Session [String]
-garbageCollectNotVisitedKeys age = callTestPlugin (GarbageCollectNotVisitedKeys age)
+garbageCollectNotVisitedKeys :: CheckParents -> Int -> Session [String]
+garbageCollectNotVisitedKeys parents age = callTestPlugin (GarbageCollectNotVisitedKeys parents age)
 
 getStoredKeys :: Session [String]
 getStoredKeys = callTestPlugin GetStoredKeys
