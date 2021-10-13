@@ -5846,8 +5846,8 @@ unitTests = do
 
 garbageCollectionTests :: TestTree
 garbageCollectionTests = testGroup "garbage collection"
-  [ testGroup "dirty keys" (sharedGCtests garbageCollectDirtyKeys)
-  , testGroup "unvisited keys" (sharedGCtests garbageCollectNotVisitedKeys)
+  [ testGroup "dirty keys" (sharedGCtests $ garbageCollectDirtyKeys CheckOnSaveAndClose)
+  , testGroup "unvisited keys" (sharedGCtests $ garbageCollectNotVisitedKeys CheckOnSaveAndClose)
   ]
   where
     sharedGCtests gc =
