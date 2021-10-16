@@ -58,6 +58,14 @@ import           OpenTelemetry.Eventlog         (SpanInFlight (..), addEvent,
                                                  mkValueObserver, observe,
                                                  setTag, withSpan, withSpan_)
 
+#if MIN_VERSION_ghc(8,8,0)
+otTracedProvider :: MonadUnliftIO m => PluginId -> ByteString -> m a -> m a
+otTracedGarbageCollection :: (MonadMask f, MonadIO f, Show a) => ByteString -> f [a] -> f [a]
+#else
+otTracedProvider :: MonadUnliftIO m => PluginId -> String -> m a -> m a
+otTracedGarbageCollection :: (MonadMask f, MonadIO f, Show a) => String -> f [a] -> f [a]
+#endif
+
 -- | Trace a handler using OpenTelemetry. Adds various useful info into tags in the OpenTelemetry span.
 otTracedHandler
     :: MonadUnliftIO m
@@ -109,7 +117,6 @@ otTracedAction key file mode result act
         (const act)
   | otherwise = act
 
-otTracedGarbageCollection :: (MonadMask f, MonadIO f, Show a) => ByteString -> f [a] -> f [a]
 otTracedGarbageCollection label act
   | userTracingEnabled = fst <$>
       generalBracket
@@ -123,11 +130,6 @@ otTracedGarbageCollection label act
         (const act)
   | otherwise = act
 
-#if MIN_VERSION_ghc(8,8,0)
-otTracedProvider :: MonadUnliftIO m => PluginId -> ByteString -> m a -> m a
-#else
-otTracedProvider :: MonadUnliftIO m => PluginId -> String -> m a -> m a
-#endif
 otTracedProvider (PluginId pluginName) provider act
   | userTracingEnabled = do
     runInIO <- askRunInIO
