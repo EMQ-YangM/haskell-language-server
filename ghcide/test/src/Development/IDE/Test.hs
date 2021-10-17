@@ -25,7 +25,6 @@ module Development.IDE.Test
   , waitForTypecheck
   , waitForBuildQueue
   , getStoredKeys
-  , garbageCollectNotVisitedKeys
   ) where
 
 import           Control.Applicative.Combinators
@@ -193,9 +192,6 @@ waitForAction key TextDocumentIdentifier{_uri} = callTestPlugin (WaitForIdeRule 
 
 garbageCollectDirtyKeys :: CheckParents -> Int -> Session [String]
 garbageCollectDirtyKeys parents age = callTestPlugin (GarbageCollectDirtyKeys parents age)
-
-garbageCollectNotVisitedKeys :: CheckParents -> Int -> Session [String]
-garbageCollectNotVisitedKeys parents age = callTestPlugin (GarbageCollectNotVisitedKeys parents age)
 
 getStoredKeys :: Session [String]
 getStoredKeys = callTestPlugin GetStoredKeys

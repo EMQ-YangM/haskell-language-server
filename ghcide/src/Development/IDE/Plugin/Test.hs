@@ -48,7 +48,6 @@ data TestRequest
     | WaitForShakeQueue -- ^ Block until the Shake queue is empty. Returns Null
     | WaitForIdeRule String Uri      -- ^ :: WaitForIdeRuleResult
     | GarbageCollectDirtyKeys CheckParents Age    -- ^ :: [String] (list of keys collected)
-    | GarbageCollectNotVisitedKeys CheckParents Age -- ^ :: [String]
     | GetStoredKeys                  -- ^ :: [String] (list of keys in store)
     | GetFilesOfInterest             -- ^ :: [FilePath]
     deriving Generic
@@ -99,9 +98,6 @@ testRequestHandler s (WaitForIdeRule k file) = liftIO $ do
     return $ bimap mkResponseError toJSON res
 testRequestHandler s (GarbageCollectDirtyKeys parents age) = do
     res <- liftIO $ runAction "garbage collect dirty" s $ garbageCollectDirtyKeysOlderThan age parents
-    return $ Right $ toJSON $ map show res
-testRequestHandler s (GarbageCollectNotVisitedKeys parents age) = do
-    res <- liftIO $ runAction "garbage collect not visited" s $ garbageCollectKeysNotVisitedFor age parents
     return $ Right $ toJSON $ map show res
 testRequestHandler s GetStoredKeys = do
     keys <- liftIO $ HM.keys <$> readVar (state $ shakeExtras s)
