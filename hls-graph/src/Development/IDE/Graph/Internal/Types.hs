@@ -58,6 +58,8 @@ data SAction = SAction {
     actionDeps     :: !(IORef (Maybe [Id])) -- Nothing means always rerun
     }
 
+getDatabase :: Action Database
+getDatabase = Action $ asks actionDatabase
 
 ---------------------------------------------------------------------
 -- DATABASE
