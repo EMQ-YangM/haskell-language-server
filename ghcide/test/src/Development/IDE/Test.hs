@@ -3,6 +3,7 @@
 
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE PolyKinds             #-}
 
 module Development.IDE.Test
@@ -25,6 +26,8 @@ module Development.IDE.Test
   , waitForTypecheck
   , waitForBuildQueue
   , getStoredKeys
+  , waitForCustomMessage
+  , waitForGC
   ) where
 
 import           Control.Applicative.Combinators
@@ -35,6 +38,7 @@ import qualified Data.Aeson                      as A
 import           Data.Bifunctor                  (second)
 import qualified Data.Map.Strict                 as Map
 import           Data.Maybe                      (fromJust)
+import           Data.Text                       (Text)
 import qualified Data.Text                       as T
 import           Development.IDE.Plugin.Test     (TestRequest (..),
                                                   WaitForIdeRuleResult,
@@ -193,7 +197,7 @@ waitForAction key TextDocumentIdentifier{_uri} = callTestPlugin (WaitForIdeRule 
 garbageCollectDirtyKeys :: CheckParents -> Int -> Session [String]
 garbageCollectDirtyKeys parents age = callTestPlugin (GarbageCollectDirtyKeys parents age)
 
-getStoredKeys :: Session [String]
+getStoredKeys :: Session [Text]
 getStoredKeys = callTestPlugin GetStoredKeys
 
 waitForTypecheck :: TextDocumentIdentifier -> Session Bool
@@ -204,3 +208,16 @@ waitForBuildQueue = callTestPlugin WaitForShakeQueue
 
 getFilesOfInterest :: Session [FilePath]
 getFilesOfInterest = callTestPlugin GetFilesOfInterest
+
+waitForCustomMessage :: T.Text -> (A.Value -> Maybe res) -> Session res
+waitForCustomMessage msg pred =
+    skipManyTill anyMessage $ satisfyMaybe $ \case
+        FromServerMess (SCustomMethod lbl) (NotMess NotificationMessage{_params = value})
+            | lbl == msg -> pred value
+        _ -> Nothing
+
+waitForGC :: Session [T.Text]
+waitForGC = waitForCustomMessage "ghcide/GC" $ \v ->
+    case A.fromJSON v of
+        A.Success x -> Just x
+        _           -> Nothing
