@@ -18,8 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ghc: ['9.0.1', '8.10.7', '8.10.6', '8.10.5', '8.8.4', '8.8.3', '8.6.5']
-        os: [ubuntu-18.04, macOS-latest, windows-latest]
+        ghc: ['9.0.1', '8.10.7', '8.10.6']
+        os: [ubuntu-18.04]
         exclude:
           - os: windows-latest
             ghc: '8.8.3' # fails due to segfault
@@ -172,7 +172,7 @@ jobs:
         with:
           submodules: true
 
-      - name: Create source tarball
+      - name: "Create source tarball"
         run: |
           mkdir src-dist
           git archive --prefix=haskell-language-server-${{ github.event.release.tag_name }}/ \
@@ -180,9 +180,7 @@ jobs:
                       -o src-dist/haskell-language-server.tar.gz \
                       HEAD
 
-      - name: Upload source tarball to the release
-        if: ${{ !contains(github.ref_name, 'check') }}
-        uses: actions/upload-release-asset@v1.0.2
+      - uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -204,7 +202,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        os: [Linux, macOS, Windows]
+        os: [Linux]
     steps:
       - uses: actions/download-artifact@v2
 
