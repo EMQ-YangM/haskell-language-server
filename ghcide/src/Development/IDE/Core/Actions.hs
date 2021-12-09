@@ -63,7 +63,8 @@ getAtPoint file pos = runMaybeT $ do
   dkMap <- lift $ maybe (DKMap mempty mempty) fst <$> runMaybeT (useE GetDocMap file)
 
   !pos' <- MaybeT (return $ fromCurrentPosition mapping pos)
-  MaybeT $ pure $ first (toCurrentRange mapping =<<) <$> AtPoint.atPoint opts hf dkMap env pos'
+  href <- asks translateMap
+  MaybeT $ pure $ first (toCurrentRange mapping =<<) <$> AtPoint.atPoint opts hf dkMap env pos' href
 
 toCurrentLocations :: PositionMapping -> [Location] -> [Location]
 toCurrentLocations mapping = mapMaybe go

@@ -15,6 +15,7 @@ module Development.IDE.Spans.Common (
 , spanDocToMarkdownForTest
 , DocMap
 , KindMap
+, spanDocToMarkdownRemove
 ) where
 
 import           Control.DeepSeq
@@ -191,3 +192,87 @@ splitForList s
   = case lines s of
       []           -> ""
       (first:rest) -> unlines $ first : map (("  " ++) . trimStart) rest
+
+spanDocToMarkdownRemove :: SpanDoc -> [T.Text]
+spanDocToMarkdownRemove (SpanDocString docs _)
+  = [T.pack $ haddockToMarkdown1 $ H.toRegular $ H._doc $ H.parseParas Nothing $ unpackHDS docs]
+    <> ["\n"]
+  -- Append the extra newlines since this is markdown --- to get a visible newline,
+  -- you need to have two newlines
+spanDocToMarkdownRemove (SpanDocText txt _) = txt <> ["\n"]
+
+
+haddockToMarkdown1
+  :: H.DocH String String -> String
+
+haddockToMarkdown1 H.DocEmpty
+  = ""
+haddockToMarkdown1 (H.DocAppend d1 d2)
+  = haddockToMarkdown1 d1 ++ " " ++ haddockToMarkdown1 d2
+haddockToMarkdown1 (H.DocString s)
+  = escapeBackticks s
+haddockToMarkdown1 (H.DocParagraph p)
+  = "\n\n" ++ haddockToMarkdown1 p
+haddockToMarkdown1 (H.DocIdentifier i)
+  = "`" ++ i ++ "`"
+haddockToMarkdown1 (H.DocIdentifierUnchecked i)
+  = "`" ++ i ++ "`"
+#if MIN_VERSION_haddock_library(1,10,0)
+haddockToMarkdown1 (H.DocModule (H.ModLink i Nothing))
+  = "`" ++ escapeBackticks i ++ "`"
+-- See https://github.com/haskell/haddock/pull/1315
+-- Module references can be labeled in markdown style, e.g. [some label]("Some.Module")
+-- However, we don't want to use the link markup here, since the module name would be covered
+-- up by the label. Thus, we keep both the label and module name in the following style:
+-- some label ( `Some.Module` )
+haddockToMarkdown1 (H.DocModule (H.ModLink i (Just label)))
+  = haddockToMarkdown1 label ++ " ( `" ++ escapeBackticks i ++ "` )"
+#else
+haddockToMarkdown1 (H.DocModule i)
+  = "`" ++ escapeBackticks i ++ "`"
+#endif
+haddockToMarkdown1 (H.DocWarning w)
+  = haddockToMarkdown1 w
+haddockToMarkdown1 (H.DocEmphasis d)
+  = "*" ++ haddockToMarkdown1 d ++ "*"
+haddockToMarkdown1 (H.DocBold d)
+  = "**" ++ haddockToMarkdown1 d ++ "**"
+haddockToMarkdown1 (H.DocMonospaced d)
+  = "`" ++ removeUnescapedBackticks (haddockToMarkdown1 d) ++ "`"
+haddockToMarkdown1 (H.DocCodeBlock d)
+  = ""
+haddockToMarkdown1 (H.DocExamples es)
+  = ""
+haddockToMarkdown1 (H.DocHyperlink (H.Hyperlink url Nothing))
+  = "<" ++ url ++ ">"
+haddockToMarkdown1 (H.DocHyperlink (H.Hyperlink url (Just label)))
+  = "[" ++ haddockToMarkdown1 label ++ "](" ++ url ++ ")"
+haddockToMarkdown1 (H.DocPic (H.Picture url Nothing))
+  = "![](" ++ url ++ ")"
+haddockToMarkdown1 (H.DocPic (H.Picture url (Just label)))
+  = "![" ++ label ++ "](" ++ url ++ ")"
+haddockToMarkdown1 (H.DocAName aname)
+  = "[" ++ escapeBackticks aname ++ "]:"
+haddockToMarkdown1 (H.DocHeader (H.Header level title))
+  = replicate level '#' ++ " " ++ haddockToMarkdown1 title
+
+haddockToMarkdown1 (H.DocUnorderedList things)
+  = '\n' : (unlines $ map (("+ " ++) . trimStart . splitForList . haddockToMarkdown1) things)
+haddockToMarkdown1 (H.DocOrderedList things)
+  = '\n' : (unlines $ map (("1. " ++) . trimStart . splitForList . haddockToMarkdown1) things)
+haddockToMarkdown1 (H.DocDefList things)
+  = '\n' : (unlines $ map (\(term, defn) -> "+ **" ++ haddockToMarkdown1 term ++ "**: " ++ haddockToMarkdown1 defn) things)
+
+-- we cannot render math by default
+haddockToMarkdown1 (H.DocMathInline _)
+  = "*cannot render inline math formula*"
+haddockToMarkdown1 (H.DocMathDisplay _)
+  = "\n\n*cannot render display math formula*\n\n"
+
+-- TODO: render tables
+haddockToMarkdown1 (H.DocTable _t)
+  = "\n\n*tables are not yet supported*\n\n"
+
+-- things I don't really know how to handle
+haddockToMarkdown1 (H.DocProperty _)
+  = ""  -- don't really know what to do

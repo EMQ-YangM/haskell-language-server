@@ -167,6 +167,8 @@ import qualified Ide.PluginUtils                        as HLS
 import           Ide.Types                              (PluginId)
 import qualified "list-t" ListT
 import qualified StmContainers.Map                      as STM
+import qualified Data.HashMap.Strict as HM
+
 
 -- | We need to serialize writes to the database, so we send any function that
 -- needs to write to the database over the channel, where it will be picked up by
@@ -226,6 +228,7 @@ data ShakeExtras = ShakeExtras
       -- ^ Default HLS config, only relevant if the client does not provide any Config
     , dirtyKeys :: TVar (HashSet Key)
       -- ^ Set of dirty rule keys since the last Shake run
+    , translateMap :: IORef (HM.HashMap T.Text T.Text)
     }
 
 type WithProgressFunc = forall a.
@@ -500,9 +503,10 @@ shakeOpen :: Maybe (LSP.LanguageContextEnv Config)
           -> VFSHandle
           -> ShakeOptions
           -> Rules ()
+          -> IORef (HM.HashMap T.Text T.Text)
           -> IO IdeState
 shakeOpen lspEnv defaultConfig logger debouncer
-  shakeProfileDir (IdeReportProgress reportProgress) ideTesting@(IdeTesting testing) hiedb indexQueue vfs opts rules = mdo
+  shakeProfileDir (IdeReportProgress reportProgress) ideTesting@(IdeTesting testing) hiedb indexQueue vfs opts rules translateMap = mdo
 
     us <- mkSplitUniqSupply 'r'
     ideNc <- newIORef (initNameCache us knownKeyNames)
@@ -1096,7 +1100,7 @@ data OnDiskRule = OnDiskRule
   -- The actual rule code which produces the new hash (or Nothing if the rule failed) and the diagnostics.
   }
 
--- This is used by the DAML compiler for incremental builds. Right now this is not used by
+-- | This is used by the DAML compiler for incremental builds. Right now this is not used by
 -- ghcide itself but that might change in the future.
 -- The reason why this code lives in ghcide and in particular in this module is that it depends quite heavily on
 -- the internals of this module that we do not want to expose.

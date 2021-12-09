@@ -39,10 +39,15 @@ import           Development.IDE.LSP.HoverDefinition
 import           Development.IDE.Types.Logger
 
 import           System.IO.Unsafe                      (unsafeInterleaveIO)
+import Data.IORef
+import qualified Data.HashMap.Strict as HM
+import Data.Text (Text)
+import qualified Translate
 
 runLanguageServer
     :: forall config. (Show config)
-    => LSP.Options
+    => IORef (HM.HashMap Text Text)
+    -> LSP.Options
     -> Handle -- input
     -> Handle -- output
     -> (FilePath -> IO FilePath) -- ^ Map root paths to the location of the hiedb for the project
@@ -51,7 +56,7 @@ runLanguageServer
     -> LSP.Handlers (ServerM config)
     -> (LSP.LanguageContextEnv config -> VFSHandle -> Maybe FilePath -> HieDb -> IndexQueue -> IO IdeState)
     -> IO ()
-runLanguageServer options inH outH getHieDbLoc defaultConfig onConfigurationChange userHandlers getIdeState = do
+runLanguageServer href options inH outH getHieDbLoc defaultConfig onConfigurationChange userHandlers getIdeState = do
 
     -- This MVar becomes full when the server thread exits or we receive exit message from client.
     -- LSP loop will be canceled when it's full.
@@ -114,6 +119,7 @@ runLanguageServer options inH outH getHieDbLoc defaultConfig onConfigurationChan
             serverDefinition
         , void $ readMVar clientMsgVar
         ]
+    Translate.terminate href
 
     where
         handleInit

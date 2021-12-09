@@ -31,6 +31,9 @@ import qualified Language.LSP.Types              as LSP
 import           Control.Monad
 import           Development.IDE.Core.Shake
 import           System.Environment             (lookupEnv)
+import qualified Data.HashMap.Strict as HM
+import Data.Text (Text)
+import Data.IORef (IORef)
 
 
 ------------------------------------------------------------
@@ -46,8 +49,9 @@ initialise :: Config
            -> VFSHandle
            -> HieDb
            -> IndexQueue
+           -> IORef (HM.HashMap Text Text)
            -> IO IdeState
-initialise defaultConfig mainRule lspEnv logger debouncer options vfs hiedb hiedbChan = do
+initialise defaultConfig mainRule lspEnv logger debouncer options vfs hiedb hiedbChan hmref= do
     shakeProfiling <- do
         let fromConf = optShakeProfiling options
         fromEnv <- lookupEnv "GHCIDE_BUILD_PROFILING"
@@ -64,11 +68,12 @@ initialise defaultConfig mainRule lspEnv logger debouncer options vfs hiedb hied
         hiedbChan
         vfs
         (optShakeOptions options)
-          $ do
+          ( do
             addIdeGlobal $ GlobalIdeOptions options
             ofInterestRules
             fileExistsRules lspEnv vfs
-            mainRule
+            mainRule)
+        hmref
 
 -- | Shutdown the Compiler Service.
 shutdown :: IdeState -> IO ()

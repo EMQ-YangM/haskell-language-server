@@ -117,6 +117,7 @@ import           System.IO                             (BufferMode (LineBufferin
 import           System.Time.Extra                     (offsetTime,
                                                         showDuration)
 import           Text.Printf                           (printf)
+import qualified Translate as Translate
 
 data Command
     = Check [FilePath]  -- ^ Typecheck some paths and print diagnostics. Exit code is the number of failures
@@ -268,7 +269,8 @@ defaultMain Arguments{..} = do
             t <- offsetTime
             logInfo logger "Starting LSP server..."
             logInfo logger "If you are seeing this in a terminal, you probably should have run WITHOUT the --lsp option!"
-            runLanguageServer options inH outH argsGetHieDbLoc argsDefaultHlsConfig argsOnConfigChange (pluginHandlers plugins) $ \env vfs rootPath hiedb hieChan -> do
+            href <- Translate.init
+            runLanguageServer href options inH outH argsGetHieDbLoc argsDefaultHlsConfig argsOnConfigChange (pluginHandlers plugins) $ \env vfs rootPath hiedb hieChan -> do
                 traverse_ IO.setCurrentDirectory rootPath
                 t <- t
                 logInfo logger $ T.pack $ "Started LSP server in " ++ showDuration t
@@ -311,6 +313,7 @@ defaultMain Arguments{..} = do
                     vfs
                     hiedb
                     hieChan
+                    href
             dumpSTMStats
         Check argFiles -> do
           dir <- IO.getCurrentDirectory
@@ -344,7 +347,8 @@ defaultMain Arguments{..} = do
                         , optCheckProject = pure False
                         , optModifyDynFlags = optModifyDynFlags def_options <> pluginModifyDynflags plugins
                         }
-            ide <- initialise argsDefaultHlsConfig rules Nothing logger debouncer options vfs hiedb hieChan
+            href <- Translate.init
+            ide <- initialise argsDefaultHlsConfig rules Nothing logger debouncer options vfs hiedb hieChan href
             shakeSessionInit ide
             registerIdeConfiguration (shakeExtras ide) $ IdeConfiguration mempty (hashed Nothing)
 
@@ -394,8 +398,9 @@ defaultMain Arguments{..} = do
                     { optCheckParents = pure NeverCheck
                     , optCheckProject = pure False
                     , optModifyDynFlags = optModifyDynFlags def_options <> pluginModifyDynflags plugins
-                    }
-            ide <- initialise argsDefaultHlsConfig rules Nothing logger debouncer options vfs hiedb hieChan
+                    }    
+            href <- Translate.init
+            ide <- initialise argsDefaultHlsConfig rules Nothing logger debouncer options vfs hiedb hieChan href
             shakeSessionInit ide
             registerIdeConfiguration (shakeExtras ide) $ IdeConfiguration mempty (hashed Nothing)
             c ide

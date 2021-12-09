@@ -55,6 +55,9 @@ import           HieDb                                hiding (pointCommand)
 import           System.Directory                     (doesFileExist)
 import GHC.IO.Unsafe(unsafePerformIO)
 import Translate
+import Data.IORef (IORef)
+import Data.HashMap.Internal.Strict (HashMap)
+import Data.Text (Text)
 
 -- | Gives a Uri for the module, given the .hie file location and the the module info
 -- The Bool denotes if it is a boot module
@@ -203,8 +206,9 @@ atPoint
   -> DocAndKindMap
   -> HscEnv
   -> Position
+  -> IORef (HashMap Text Text)
   -> Maybe (Maybe Range, [T.Text])
-atPoint IdeOptions{} (HAR _ hf _ _ kind) (DKMap dm km) env pos = listToMaybe $ pointCommand hf pos hoverInfo
+atPoint IdeOptions{} (HAR _ hf _ _ kind) (DKMap dm km) env pos href = listToMaybe $ pointCommand hf pos hoverInfo
   where
     -- Hover info for values/data
     hoverInfo ast = (Just range, prettyNames ++ pTypes)
@@ -229,8 +233,8 @@ atPoint IdeOptions{} (HAR _ hf _ _ kind) (DKMap dm km) env pos = listToMaybe $ p
           ++ catMaybes [ T.unlines . spanDocToMarkdown <$> lookupNameEnv dm n
                        ] 
             ++ maybeToList (unsafePerformIO 
-                            (translateFun $ T.unlines 
-                                         $ catMaybes [ T.unlines . spanDocToMarkdown <$> lookupNameEnv dm n
+                            (translateFun href $ T.unlines 
+                                         $ catMaybes [ T.unlines . spanDocToMarkdownRemove <$> lookupNameEnv dm n
                                                      ] 
                                                      ))
           where maybeKind = fmap showGhc $ safeTyThingType =<< lookupNameEnv km n
