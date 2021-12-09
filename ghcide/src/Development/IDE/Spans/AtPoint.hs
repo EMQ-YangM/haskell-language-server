@@ -53,6 +53,8 @@ import           Data.List.Extra                      (dropEnd1, nubOrd)
 import           Data.Version                         (showVersion)
 import           HieDb                                hiding (pointCommand)
 import           System.Directory                     (doesFileExist)
+import GHC.IO.Unsafe(unsafePerformIO)
+import Translate
 
 -- | Gives a Uri for the module, given the .hie file location and the the module info
 -- The Bool denotes if it is a boot module
@@ -225,7 +227,12 @@ atPoint IdeOptions{} (HAR _ hf _ _ kind) (DKMap dm km) env pos = listToMaybe $ p
           : definedAt n
           ++ maybeToList (prettyPackageName n)
           ++ catMaybes [ T.unlines . spanDocToMarkdown <$> lookupNameEnv dm n
-                       ]
+                       ] 
+            ++ maybeToList (unsafePerformIO 
+                            (translateFun $ T.unlines 
+                                         $ catMaybes [ T.unlines . spanDocToMarkdown <$> lookupNameEnv dm n
+                                                     ] 
+                                                     ))
           where maybeKind = fmap showGhc $ safeTyThingType =<< lookupNameEnv km n
         prettyName (Left m,_) = showGhc m
 
@@ -268,18 +275,18 @@ typeLocationsAtPoint hiedb lookupModule _ideOptions pos (HAR _ ast _ _ hieKind) 
             where ni = nodeInfo' x
           getTypes ts = flip concatMap (unfold ts) $ \case
             HTyVarTy n -> [n]
-#if MIN_VERSION_ghc(8,8,0)
+
             HAppTy a (HieArgs xs) -> getTypes (a : map snd xs)
-#else
-            HAppTy a b -> getTypes [a,b]
-#endif
+
+
+
             HTyConApp tc (HieArgs xs) -> ifaceTyConName tc : getTypes (map snd xs)
             HForAllTy _ a -> getTypes [a]
-#if MIN_VERSION_ghc(9,0,1)
-            HFunTy a b c -> getTypes [a,b,c]
-#else
+
+
+
             HFunTy a b -> getTypes [a,b]
-#endif
+
             HQualTy a b -> getTypes [a,b]
             HCastTy a -> getTypes [a]
             _ -> []
